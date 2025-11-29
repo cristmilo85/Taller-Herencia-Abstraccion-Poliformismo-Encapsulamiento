@@ -1,0 +1,290 @@
+"""
+    EJERCICIO 6.4: SISTEMA DE INVENTARIO DE INSUMOS
+    ------------------------------------------------------------------------------------------------------------------------
+    CONTEXTO:
+    Controlar inventario de ingredientes frescos, secos, bebidas y
+    suministros, cada uno con almacenamiento y caducidad diferentes.
+
+    REQUERIMIENTOS:
+    1. Crear clase abstracta "Insumo" (ABSTRACCION):
+    - Atributos privados: nombre, codigo, cantidad, unidad_medida
+    - Atributo protegido: _fecha_vencimiento
+    - Metodo abstracto: verificar_disponibilidad()
+    - Metodo abstracto: calcular_merma()
+    - Metodo concreto: descontar_stock(cantidad)
+
+    2. Clases derivadas (HERENCIA):
+    - IngredienteFresco: temperatura_almacenamiento, dias_vida_util
+    - IngredienteSeco: lote, almacen_seco, meses_vida_util
+    - Bebida: tamaño_envase, requiere_refrigeracion, es_retornable
+    - Suministro: tipo (desechable, limpieza), cantidad_minima
+
+    3. ENCAPSULAMIENTO:
+    - Stock privado con alertas
+    - Metodo privado __calcular_punto_reorden()
+    - Costos protegidos
+
+    4. POLIMORFISMO:
+    - verificar_disponibilidad() considera diferentes factores
+    - calcular_merma(): Fresco (alta), Seco (baja), Bebida (media),
+        Suministro (ninguna)
+
+    ENTREGABLES:
+    - Implementar todas las clases
+    - Crear inventario con 3 insumos de cada tipo
+    - Simular uso diario y descontar stock
+    - Generar alertas de reorden automaticas
+
+"""
+
+from datetime import datetime, timedelta
+
+from abc import ABC, abstractmethod
+
+
+# ======================================================================
+#                       CLASE ABSTRACTA INSUMO
+# ======================================================================
+
+class Insumo(ABC):
+    """
+    Clase base abstracta que representa un insumo genérico.
+    Aquí se asegura el uso de abstracción, encapsulamiento y polimorfismo.
+    """
+
+    def __init__(self, nombre, codigo, cantidad, unidad_medida, fecha_vencimiento):
+        # Atributos privados y protegidos según premisas
+        self._nombre = nombre
+        self._codigo = codigo
+        self.__cantidad = cantidad   # Encapsulación fuerte
+        self._unidad_medida = unidad_medida
+        self._fecha_vencimiento = fecha_vencimiento
+        self._costo_unitario = 0.0   # Costo protegido (premisa)
+
+    # Getter seguro de cantidad
+    @property
+    def cantidad(self):
+        return self.__cantidad
+
+    # Método privado pedido por el ejercicio
+    def __calcular_punto_reorden(self):
+        """
+        Umbral fijo para reorden, usado internamente.
+        """
+        return 20.0
+
+    def descontar_stock(self, cantidad: float) -> bool:
+        """
+        Descuenta stock y dispara alerta de reorden usando el método privado.
+        """
+        if cantidad <= self.__cantidad:
+            self.__cantidad -= cantidad
+            punto_reorden = self.__calcular_punto_reorden()
+
+            if self.__cantidad <= punto_reorden:
+                print(f"ALERTA: {self._nombre} necesita reorden.")
+                print(f"Stock actual: {self.__cantidad} {self._unidad_medida}")
+                return True
+            return False
+
+        else:
+            print(f"ERROR: Stock insuficiente de {self._nombre}")
+            print(f"Solicitado: {cantidad}, Disponible: {self.__cantidad}")
+            return False
+
+    # Métodos abstractos
+    @abstractmethod
+    def verificar_disponibilidad(self):
+        pass
+
+    @abstractmethod
+    def calcular_merma(self):
+        pass
+
+
+# ======================================================================
+#                        INGREDIENTE FRESCO
+# ======================================================================
+
+class IngredienteFresco(Insumo):
+
+    def __init__(self, nombre, codigo, cantidad, unidad_medida, fecha_vencimiento,
+                 temperatura_almacenamiento: float, dias_vida_util: int):
+
+        super().__init__(nombre, codigo, cantidad, unidad_medida, fecha_vencimiento)
+        self.temperatura_almacenamiento = temperatura_almacenamiento
+        self.dias_vida_util = dias_vida_util
+
+    # -----------------------------------------
+    # Métodos privados internos
+    # -----------------------------------------
+
+    def __calculo_dias(self):
+        diferencia = self._fecha_vencimiento - datetime.now()
+        return diferencia.days
+
+    def __estado_vencimiento(self):
+        dias = self.__calculo_dias()
+        return "vencido" if dias <= 0 else "óptimo"
+
+    def __verificar_temperatura(self):
+        return "alerta" if self.temperatura_almacenamiento > 4 else "óptimo"
+
+    # -----------------------------------------
+    # Polimorfismo
+    # -----------------------------------------
+
+    def verificar_disponibilidad(self):
+        return {
+            'disponible': self.cantidad > 5 and self.__estado_vencimiento() == "óptimo",
+            'estado': self.__estado_vencimiento(),
+            'temperatura': self.__verificar_temperatura()
+        }
+
+    def calcular_merma(self):
+        dias = self.__calculo_dias()
+
+        if dias < 0:
+            return 100.0
+        elif dias <= 2:
+            return 25.0
+        elif dias <= 5:
+            return 15.0
+        else:
+            return 5.0
+
+
+# ======================================================================
+#                      INGREDIENTE SECO
+# ======================================================================
+
+class IngredienteSeco(Insumo):
+    def __init__(self, nombre, codigo, cantidad, unidad_medida, fecha_vencimiento,
+                 lote: str, almacen_seco: str, meses_vida_util: int):
+
+        super().__init__(nombre, codigo, cantidad, unidad_medida, fecha_vencimiento)
+        self.lote = lote
+        self.almacen_seco = almacen_seco
+        self.meses_vida_util = meses_vida_util
+
+    def __calculo_meses(self):
+        diferencia = self._fecha_vencimiento - datetime.now()
+        dias = diferencia.days
+        return dias // 30
+
+    def __estado_vencimiento(self):
+        meses = self.__calculo_meses()
+        return "vencido" if meses <= 0 else "óptimo"
+
+    def verificar_disponibilidad(self):
+        return {
+            'disponible': self.cantidad > 3,   # corregido
+            'estado': self.__estado_vencimiento()
+        }
+
+    def calcular_merma(self):
+        meses_restantes = self.__calculo_meses()
+        if meses_restantes < 0:
+            return 50.0
+        elif meses_restantes <= 1:
+            return 10.0
+        else:
+            return 2.0
+
+
+# ======================================================================
+#                             BEBIDA
+# ======================================================================
+
+class Bebida(Insumo):
+    def __init__(self, nombre, codigo, cantidad, unidad_medida,
+                 fecha_vencimiento, tamaño_envase: str,
+                 requiere_refrigeracion: float, es_retornable: str):
+
+        super().__init__(nombre, codigo, cantidad, unidad_medida, fecha_vencimiento)
+        self.tamaño_envase = tamaño_envase
+        self.requiere_refrigeracion = requiere_refrigeracion
+        self.es_retornable = es_retornable
+
+    def __calculo_dias(self):
+        diferencia = self._fecha_vencimiento - datetime.now()
+        return diferencia.days
+
+    def __estado_vencimiento(self):
+        dias = self.__calculo_dias()
+        return "vencido" if dias <= 0 else "óptimo"
+
+    def __verificar_temperatura(self):
+        # corregido
+        return "alerta" if not (2 <= self.requiere_refrigeracion <= 5) else "óptimo"
+
+    def verificar_disponibilidad(self):
+        return {
+            'disponible': self.cantidad > 10,
+            'estado': self.__estado_vencimiento(),
+            'temperatura': self.__verificar_temperatura()
+        }
+
+    def calcular_merma(self):
+        dias = self.__calculo_dias()
+        if dias < 0:
+            return 40.0
+        elif dias <= 10:
+            return 20.0
+        else:
+            return 8.0
+
+
+# ======================================================================
+#                             SUMINISTRO
+# ======================================================================
+
+class Suministro(Insumo):
+    def __init__(self, nombre, codigo, cantidad, unidad_medida,
+                 fecha_vencimiento, tipo: str, cantidad_minima: int):
+
+        super().__init__(nombre, codigo, cantidad, unidad_medida, fecha_vencimiento)
+        self.tipo = tipo
+        self.cantidad_minima = cantidad_minima
+
+    def verificar_disponibilidad(self):
+        return {
+            "disponible": self.cantidad > self.cantidad_minima,
+            "mensaje": "Stock suficiente" if self.cantidad > self.cantidad_minima else "Agotado"
+        }
+
+    def calcular_merma(self):
+        if self.cantidad > 100:
+            return 5.0
+        elif self.cantidad > 20:
+            return 3.0
+        else:
+            return 1.0
+
+
+# ======================================================================
+#                        SIMULACIÓN DE INVENTARIO
+# ======================================================================
+
+if __name__ == "__main__":
+
+    print("\n=========== SIMULACIÓN DE INVENTARIO ===========\n")
+
+    inventario = [
+        IngredienteFresco("Lechuga", 101, 30, "kg", datetime.now() + timedelta(days=4), 3, 7),
+        IngredienteFresco("Tomate", 102, 50, "kg", datetime.now() + timedelta(days=1), 6, 5),
+        IngredienteSeco("Arroz", 201, 100, "kg", datetime.now() + timedelta(days=200), "L001", "Zona 1", 12),
+        Bebida("Coca Cola", 301, 60, "unid", datetime.now() + timedelta(days=300), "350ml", 4, "sí"),
+        Suministro("Servilletas", 401, 15, "paquetes", datetime.now() + timedelta(days=999), "desechable", 10)
+    ]
+
+    for insumo in inventario:
+        print(f"\n--- {insumo._nombre.upper()} ---")
+        print("Disponibilidad:", insumo.verificar_disponibilidad())
+        print("Merma estimada:", insumo.calcular_merma(), "%")
+
+        # consumo simulado
+        insumo.descontar_stock(10)
+
+
+
