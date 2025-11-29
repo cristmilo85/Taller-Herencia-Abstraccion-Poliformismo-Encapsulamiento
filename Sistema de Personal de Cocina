@@ -1,0 +1,122 @@
+"""
+EJERCICIO 6.2: SISTEMA DE PERSONAL DE COCINA
+----------------------------------------------------------------------------------------------------------------------
+CONTEXTO:
+El restaurante tiene chef ejecutivo, cocineros, ayudantes de cocina
+y personal de limpieza, cada uno con funciones y salarios diferentes.
+
+REQUERIMIENTOS:
+1. Crear clase abstracta "PersonalCocina" (ABSTRACCION):
+   - Atributos privados: nombre, codigo_empleado, turno, fecha_contratacion
+   - Atributo protegido: _especialidades (lista)
+   - Metodo abstracto: calcular_salario()
+   - Metodo abstracto: asignar_tarea()
+   - Metodo concreto: registrar_asistencia(fecha)
+
+2. Clases derivadas (HERENCIA):
+   - ChefEjecutivo: años_experiencia, certificaciones, crea_menu
+   - Cocinero: estacion_asignada, platos_especialidad
+   - AyudanteCocina: supervisor, tareas_basicas, en_capacitacion
+   - PersonalLimpieza: area_asignada, turno_limpieza
+
+3. ENCAPSULAMIENTO:
+   - Salario privado con bonos
+   - Metodo privado __calcular_bono_desempeño()
+   - Evaluaciones protegidas
+
+4. POLIMORFISMO:
+   - calcular_salario(): Chef (alto), Cocinero (medio),
+     Ayudante (basico), Limpieza (basico)
+   - asignar_tarea() distribuye responsabilidades diferentes
+
+ENTREGABLES:
+- Implementar todas las clases
+- Crear equipo de cocina completo
+- Asignar tareas para un servicio
+- Calcular nomina mensual
+
+
+
+"""
+
+
+from abc import ABC, abstractmethod
+
+
+class PersonalCocina(ABC):
+    def __init__(self, nombre, codigo, turno):
+        self.__nombre = nombre             
+        self.__codigo = codigo             
+        self.__turno = turno                
+        self._especialidades = []          
+
+    @abstractmethod
+    def calcular_salario(self):
+        pass
+
+    @abstractmethod
+    def asignar_tarea(self):
+        pass
+
+    def registrar_asistencia(self):
+        print(f"Asistencia registrada de {self.__nombre}")
+
+
+
+class ChefEjecutivo(PersonalCocina):
+    def calcular_salario(self):
+        return 6000000   
+
+    def asignar_tarea(self):
+        return "Supervisar cocina y crear menú"
+
+
+class Cocinero(PersonalCocina):
+    def calcular_salario(self):
+        return 3000000
+
+    def asignar_tarea(self):
+        return "Cocinar en la estación asignada"
+
+
+class AyudanteCocina(PersonalCocina):
+    def calcular_salario(self):
+        return 1500000
+
+    def asignar_tarea(self):
+        return "Ayudar con la preparación y limpieza"
+
+
+class PersonalLimpieza(PersonalCocina):
+    def calcular_salario(self):
+        return 1200000
+
+    def asignar_tarea(self):
+        return "Limpiar la cocina y áreas asignadas"
+
+
+
+
+chef = ChefEjecutivo("Carlos", "C001", "Mañana")
+cocinero = Cocinero("Ana", "C002", "Tarde")
+ayudante = AyudanteCocina("Luis", "C003", "Noche")
+limpieza = PersonalLimpieza("Pedro", "L001", "Noche")
+
+equipo = [chef, cocinero, ayudante, limpieza]
+
+
+print("tareas del dia")
+for persona in equipo:
+    print(type(persona).__name__, "---", persona.asignar_tarea())
+
+
+print("nomina")
+total = 0
+
+for persona in equipo:
+    salario = persona.calcular_salario()
+    total += salario
+    print(type(persona).__name__, ":", salario)
+
+print("\nTotal a pagar:", total)
+
