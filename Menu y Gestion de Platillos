@@ -1,0 +1,538 @@
+"""
+EJERCICIO 6.1: MENU Y GESTION DE PLATILLOS
+-------------------------------------------
+CONTEXTO:
+Un restaurante ofrece entradas, platos de fondo, postres y bebidas.
+Cada categoria tiene preparacion, ingredientes y precios diferentes.
+
+REQUERIMIENTOS:
+1. Crear clase abstracta "ItemMenu" (ABSTRACCION):
+   - Atributos privados: nombre, codigo, precio_base, categoria
+   - Atributo protegido: _ingredientes (lista)
+   - Metodo abstracto: calcular_precio_venta()
+   - Metodo abstracto: tiempo_preparacion()
+   - Metodo concreto: agregar_ingrediente(ingrediente)
+
+2. Clases derivadas (HERENCIA):
+   - Entrada: tamaño_porcion, es_para_compartir, temperatura_servir
+   - PlatoFondo: tipo_proteina, acompañamientos, nivel_coccion
+   - Postre: dulzura, contiene_lactosa, temperatura
+   - Bebida: tamaño_ml, es_alcoholica, temperatura_servir
+
+3. ENCAPSULAMIENTO:
+   - Lista de ingredientes privada con costo
+   - Metodo privado __calcular_costo_ingredientes()
+   - Receta protegida (secreto del chef)
+
+4. POLIMORFISMO:
+   - calcular_precio_venta(): margen diferente por categoria
+   - tiempo_preparacion(): 10min, 25min, 15min, 5min
+   - Metodo obtener_informacion_nutricional() varia
+
+ENTREGABLES:
+- Todas las clases implementadas
+- Crear menu con 3 items de cada tipo
+- Calcular costo y precio de venta
+- Tiempo total de preparacion de un pedido
+
+
+
+"""
+
+
+
+# a continuacion creamos la lista donde se guardara los tipos de comida para los pedidos
+pedido = []
+
+from abc import ABC, abstractmethod
+
+# se crea la clase padre con los atributos y metodos requeridos
+class ItemMenu(ABC):
+    def __init__(self,nombre,codigo,precio_base,categoria,ingredientes, receta):
+        self._nombre = nombre
+        self._codigo = codigo
+        self._precio_base = precio_base
+        self._categoria = categoria
+        self._ingredientes = []
+        self._receta = []
+
+
+    @abstractmethod
+    def calcular_precio_venta(self):
+        pass
+
+
+    @abstractmethod
+    def tiempo_preparacion(self):
+        pass
+
+    
+    def agregar_ingredientes(self):
+        while True:
+            ingrediente = input("Ingrese ingrediente (0 para terminar): ")
+            
+
+            if ingrediente == "0":
+                print("Ingreso finalizado.")
+                break
+
+            costo_ingrediente = input("Ingrese el costo del ingrediente agregado: ")
+            self._ingredientes.append((ingrediente,costo_ingrediente))
+            print(f" Ingrediente '{ingrediente}' agregado")
+
+
+    def _calcular_costo_ingredientes(self):
+        costo = 0
+
+        for nombre, precio in self._ingredientes:
+            costo += float(precio)
+
+        return costo
+
+
+
+    def _Receta_protegida(self):
+        for nombre,costo in self._ingredientes:
+            cant_ing = input(f"favor digite la cantidad a utilizar en la receta del ingrediente en (gramos - mililitros) {nombre}: ")
+            self._receta.append((nombre,cant_ing))
+        instrucciones = input("favor digita los pasos e instruciiones para el plato a preparar: ")
+        self._receta.append(("Instrucciones",instrucciones))
+
+
+    def  obtener_informacion_nutricional(self):
+        pass   
+    
+            
+                
+
+
+
+# clase hija con herencia de atributos y metodos del padre
+class Entrada(ItemMenu):
+    def __init__(self, nombre, codigo, precio_base, categoria, ingredientes, tamaño_porcion, es_para_compartir, temperatura_servir,receta):
+        super().__init__(nombre, codigo, precio_base, categoria, ingredientes,receta) 
+        self.tamaño_porcion = tamaño_porcion
+        self.es_para_compartir = es_para_compartir
+        self.temperatura_servir = temperatura_servir
+
+    def calcular_precio_venta(self):
+        if self.tamaño_porcion == "Grande":
+            return self._precio_base + (self._precio_base * 0.3)
+        else:
+            return self._precio_base + (self._precio_base * 0.2)
+
+    def tiempo_preparacion(self):        
+        return 5 
+            
+    def agregar_ingredientes(self):
+        print("ingredientes necesarios para la (Entrada): ")
+        return super().agregar_ingredientes()
+    
+    def _calcular_costo_ingredientes(self):
+        return super()._calcular_costo_ingredientes()
+    
+    def _Receta_protegida(self):
+        return super()._Receta_protegida()
+    
+    def obtener_informacion_nutricional(self):
+            print("La entrada contiene entre 200 y 300 calorias")
+
+
+
+
+
+
+
+
+# clase hija con herencia de atributos y metodos del padre
+class PlatoFondo(ItemMenu):
+    def __init__(self, nombre, codigo, precio_base, categoria, ingredientes, tipo_proteina, acompañamientos, nivel_coccion,receta):
+        super().__init__(nombre, codigo, precio_base, categoria, ingredientes,receta)
+        self.tipo_proteina = tipo_proteina
+        self.acompañamientos = acompañamientos
+        self.nivel_coccion = nivel_coccion
+
+    def calcular_precio_venta(self):
+        return self._precio_base + (self._precio_base * 0.5)
+
+    def tiempo_preparacion(self):
+        return 25  
+
+    def agregar_ingredientes(self):
+        print("ingredientes necesarios para el (PlatoFondo): ")
+        return super().agregar_ingredientes()
+    
+    def _calcular_costo_ingredientes(self):
+        return super()._calcular_costo_ingredientes()
+    
+    def _Receta_protegida(self):
+        return super()._Receta_protegida()
+
+    def obtener_informacion_nutricional(self):
+        return "El plato de fondo contiene 2000 calorias aproximadamente"      
+
+
+
+# clase hija con herencia de atributos y metodos del padre
+class Postre(ItemMenu):
+    def __init__(self, nombre, codigo, precio_base, categoria, ingredientes, dulzura, contiene_lactosa, temperatura,receta):
+        super().__init__(nombre, codigo, precio_base, categoria, ingredientes,receta)  
+        self.dulzura = dulzura
+        self.contiene_lactosa = contiene_lactosa
+        self.temperatura = temperatura
+
+    def calcular_precio_venta(self):
+        return self._precio_base + (self._precio_base * 0.4)
+
+    def tiempo_preparacion(self):
+        return 15 
+
+    def agregar_ingredientes(self):
+        print("ingredientes necesarios para el (Postre): ")
+        return super().agregar_ingredientes()
+    
+    def _calcular_costo_ingredientes(self):
+        return super()._calcular_costo_ingredientes()
+    
+    def _Receta_protegida(self):
+        return super()._Receta_protegida() 
+
+    def obtener_informacion_nutricional(self):
+        return "El postre contiene 500 calorias aproximadamente"    
+
+
+
+# clase hija con herencia de atributos y metodos del padre
+class Bebida(ItemMenu):
+    def __init__(self, nombre, codigo, precio_base, categoria, ingredientes, tamaño_ml, es_alcoholica, temperatura_servir,receta):
+        super().__init__(nombre, codigo, precio_base, categoria, ingredientes,receta) 
+        self.tamaño_ml = tamaño_ml
+        self.es_alcoholica = es_alcoholica
+        self.temperatura_servir = temperatura_servir
+
+    def calcular_precio_venta(self):
+        if self.es_alcoholica:
+            return self._precio_base + (self._precio_base * 0.4)
+        else:
+            return self._precio_base + (self._precio_base * 0.2)
+
+    def tiempo_preparacion(self):
+        return 5 
+
+    def agregar_ingredientes(self):
+        print("ingredientes necesarios para la (Bebida): ")
+        return super().agregar_ingredientes()
+    
+    def _calcular_costo_ingredientes(self):
+        return super()._calcular_costo_ingredientes()
+    
+    def _Receta_protegida(self):
+        return super()._Receta_protegida()
+
+    def obtener_informacion_nutricional(self):
+        return "La bebida contiene 100 calorias aprox"       
+                
+
+
+
+# a continuacion se crean los objetos apartir de las clases ya creadas
+entrada1 = Entrada(
+    "Bruschetta", "E001", 8000, "Entrada",
+    "","pequeña", False, "fría","")
+
+entrada2 = Entrada(
+    "Sopa de tomate", "E002", 9000, "Entrada",
+    "","mediana", True, "caliente","")
+
+entrada3 = Entrada(
+    "Ensalada César", "E003", 10000, "Entrada",
+   "","grande", True, "fría","")
+
+plato1 = PlatoFondo(
+    "Pasta Alfredo", "P001", 18000, "PlatoFondo",
+    "","pollo", ["pan", "ensalada"], "media","")
+
+plato2 = PlatoFondo(
+    "Carne asada", "P002", 25000, "PlatoFondo",
+    "", "res", ["papas fritas"], "3/4","")
+
+plato3 = PlatoFondo(
+    "Arroz con mariscos", "P003", 23000, "PlatoFondo",
+    "","mariscos", ["patacones"], "bien cocido","")
+
+postre1 = Postre(
+    "Helado de vainilla", "D001", 6000, "Postre",
+    "","alta", True, "frío","")
+
+postre2 = Postre(
+    "Torta de chocolate", "D002", 8000, "Postre",
+    "","media", True, "ambiente","")
+
+postre3 = Postre(
+    "Frutas mixtas", "D003", 7000, "Postre",
+    "","baja", False, "frío","")
+
+bebida1 = Bebida(
+    "Limonada", "B001", 4000, "Bebida",
+    "",350, False, "fría","")
+
+bebida2 = Bebida(
+    "Cerveza", "B002", 6000, "Bebida",
+    "", 500, True, "fría","")
+
+bebida3 = Bebida(
+    "Café", "B003", 5000, "Bebida",
+    "",250, False, "caliente","")
+
+
+#se define funcion para sumar el total de tiempo de cada tipo de comida ingresada en la lista del pedido
+def tiempo_total_preparacion(pedido):
+    total = 0
+    for item in pedido:
+        total += item.tiempo_preparacion()
+    print("el tiempo aproximado de espera es: ", total,"minutos")
+
+
+#se define funcion para sumar el valor total de cada tipo de comida ingresaad en la lista del pedido
+def total_a_pagar(pedido):
+    total = 0
+    for i in pedido:
+        total += i.calcular_precio_venta()
+    print("el total a pagar es: ",total,"$")
+
+
+
+#se define funcion para ingresar a la lista de pedido cada tipo de comida que se desee
+def pedidos(): 
+
+
+    entradas = [ "Bruschetta","Sopa de tomate", "Ensalada César"]
+    platos = ["Pasta Alfredo","Carne asada", "Arroz con mariscos"]
+    postres = ["Helado de vainilla","Torta de chocolate", "Frutas mixtas"]
+    bebidas = [ "Limonada", "Cerveza", "Café"]
+
+    print("a continuacion se presenta el menu a elegir")
+
+    print("estas son las entradas que ofrecemos: ")
+
+    for i in range(1,4):
+        i -=1
+        print(f"digite {i + 1} si la opcion a elegir es {entradas[i]}: ")
+
+    print("Si no desea ninguna entrada digite 0")
+
+    while True:
+
+
+        try:
+                
+            opcion_entrada = int(input("seleccione: "))
+            if opcion_entrada == 1:
+                pedido.append(entrada1)
+            elif opcion_entrada == 2:
+                pedido.append(entrada2)
+            elif opcion_entrada == 3:
+                pedido.append(entrada3)
+            elif opcion_entrada == 0:
+                break
+        except ValueError:
+            print("debes ingresar un numero valido")
+
+
+    
+    print("estas son los platos de fondo que ofrecemos: ")
+
+    for i in range(1,4):
+        i -=1
+        print(f"digite {i + 1} si la opcion a elegir es {platos[i]}: ")
+
+    print("Si no desea ningun plato de fondo digite 0")
+
+    while True:
+
+
+        try:
+                
+            opcion_plato = int(input("seleccione: "))
+            if opcion_plato == 1:
+                pedido.append(plato1)
+            elif opcion_plato == 2:
+                pedido.append(plato2)
+            elif opcion_plato == 3:
+                pedido.append(plato3)
+            elif opcion_plato == 0:
+                break
+        except ValueError:
+            print("debes ingresar un numero valido")
+
+
+
+    print("estos son los postres que ofrecemos: ")
+
+    for i in range(1,4):
+        i -=1
+        print(f"digite {i + 1} si la opcion a elegir es {postres[i]}: ")
+
+    print("Si no desea ningun postre digite 0")
+
+    while True:
+
+
+        try:
+                
+            opcion_postre = int(input("seleccione: "))
+            if opcion_postre == 1:
+                pedido.append(postre1)
+            elif opcion_postre == 2:
+                pedido.append(postre2)
+            elif opcion_postre == 3:
+                pedido.append(postre3)
+            elif opcion_postre == 0:
+                break
+        except ValueError:
+            print("debes ingresar un numero valido")
+
+
+
+    print("estas son las bebidas que ofrecemos: ")
+
+    for i in range(1,4):
+        i -=1
+        print(f"digite {i + 1} si la opcion a elegir es {bebidas[i]}: ")
+
+    print("Si no desea ninguna bebida digite 0")
+
+    while True:
+
+
+        try:
+                
+            opcion_bebida = int(input("seleccione: "))
+            if opcion_bebida == 1:
+                pedido.append(bebida1)
+            elif opcion_bebida == 2:
+                pedido.append(bebida2)
+            elif opcion_bebida == 3:
+                pedido.append(bebida3)
+            elif opcion_bebida == 0:
+                break
+        except ValueError:
+            print("debes ingresar un numero valido")
+
+
+
+
+
+
+
+
+
+
+
+
+
+""" REQUERIMIENTOS METODOS EJERCICIO """
+
+
+
+
+""" EN ESTE BLOQUE INGRESAMOS LOS INGREDIENTES CON SU COSTO POR TIPO DE COMIDA, PRECIO DE VENTA, INFORMACION NUTRICIONAL"""
+
+
+met_entradas = [entrada1,entrada2,entrada3]
+met_platos = [plato1,plato2,plato3]
+met_postres = [postre1,postre2,postre3]
+met_bebidas = [bebida1,bebida2,bebida3]
+
+
+for i in met_entradas:
+    print(40*("/"))
+    print(f"ingredientes para la {i._nombre}")
+    i.agregar_ingredientes()
+    i._calcular_costo_ingredientes()
+    i._Receta_protegida()
+    print(f"el precio de venta de {i._nombre} es: ")
+    print(i.calcular_precio_venta(),"$")    
+    print(f"el tiempo de preparacion de {i._nombre} es: ")
+    print(i.tiempo_preparacion(),"minutos")
+    i.obtener_informacion_nutricional()
+
+for i in met_platos:
+    print(40*("/"))
+    print(f"ingredientes para la {i._nombre}")
+    i.agregar_ingredientes()
+    i._calcular_costo_ingredientes()
+    i._Receta_protegida()
+    print(f"el precio de venta de {i._nombre} es: ")
+    print(i.calcular_precio_venta(),"$")    
+    print(f"el tiempo de preparacion de {i._nombre} es: ")
+    print(i.tiempo_preparacion(),"minutos")
+    i.obtener_informacion_nutricional()   
+
+for i in met_postres:
+    print(40*("/"))
+    print(f"ingredientes para la {i._nombre}")
+    i.agregar_ingredientes()
+    i._calcular_costo_ingredientes()
+    i._Receta_protegida()
+    print(f"el precio de venta de {i._nombre} es: ")
+    print(i.calcular_precio_venta(),"$")    
+    print(f"el tiempo de preparacion de {i._nombre} es: ")
+    print(i.tiempo_preparacion(),"minutos")
+    i.obtener_informacion_nutricional()
+
+for i in met_bebidas:
+    print(40*("/"))
+    print(f"ingredientes para la {i._nombre}")
+    i.agregar_ingredientes()
+    i._calcular_costo_ingredientes()
+    i._Receta_protegida()
+    print(f"el precio de venta de {i._nombre} es: ")
+    print(i.calcular_precio_venta(),"$")    
+    print(f"el tiempo de preparacion de {i._nombre} es: ")
+    print(i.tiempo_preparacion(),"minutos")
+    i.obtener_informacion_nutricional() 
+
+
+
+
+
+# aqui comprobamos el funcionamiento del programa
+pedidos()
+tiempo_total_preparacion(pedido)
+total_a_pagar(pedido)
+
+
+
+
+
+
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
