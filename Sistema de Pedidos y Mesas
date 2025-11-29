@@ -1,0 +1,602 @@
+"""
+EJERCICIO 6.3: SISTEMA DE PEDIDOS Y MESAS
+------------------------------------------------------------------------------------------------------------------------
+CONTEXTO:
+Gestionar pedidos para comer en salon, para llevar, delivery y eventos,
+cada uno con proceso y costos adicionales diferentes.
+
+REQUERIMIENTOS:
+1. Crear clase abstracta "Pedido" (ABSTRACCION):
+   - Atributos privados: numero_pedido, fecha_hora, items, estado
+   - Atributo protegido: _cliente
+   - Metodo abstracto: calcular_total()
+   - Metodo abstracto: tiempo_estimado_entrega()
+   - Metodo concreto: agregar_item(item)
+
+2. Clases derivadas (HERENCIA):
+   - PedidoSalon: numero_mesa, num_comensales, mesero_asignado
+   - PedidoParaLlevar: hora_recojo, empaque_especial
+   - PedidoDelivery: direccion_entrega, repartidor, costo_envio
+   - PedidoEvento: num_personas, menu_fijo, anticipo, fecha_evento
+
+3. ENCAPSULAMIENTO:
+   - Total privado con calculos complejos
+   - Metodo privado __aplicar_propina()
+   - Estado de cocina protegido
+
+4. POLIMORFISMO:
+   - calcular_total(): Salon (+ propina sugerida), Llevar (- descuento), Delivery (+ envio), Evento (precio paquete)
+   - tiempo_estimado_entrega() varia significativamente
+
+ENTREGABLES:
+- Todas las clases implementadas
+- Simular 2 pedidos de cada tipo
+- Calcular totales con todos los cargos
+- Gestionar estados de pedidos
+
+"""
+from abc import ABC, abstractmethod
+from datetime import datetime
+
+
+class Pedido(ABC):
+    """
+    Clase abstracta base para todos los tipos de pedidos.
+    
+    ENCAPSULAMIENTO:
+    - Atributos privados (__): numero_pedido, fecha_hora, items, estado
+    - Atributo protegido (_): cliente, estado_cocina
+    """
+    
+    def __init__(self, numero_pedido: int, fecha_hora: datetime, items: list, estado: str, cliente: str):
+        # Atributos privados - solo accesibles dentro de la clase
+        self.__numero_pedido = numero_pedido
+        self.__fecha_hora = fecha_hora
+        self.__estado = estado
+        self.__items = items if items else []  # Inicializar como lista vacía si es None
+        
+        # Atributos protegidos - accesibles en clases hijas
+        self._cliente = cliente
+        self._estado_cocina = "pendiente"
+    
+    # MÉTODOS ABSTRACTOS - Deben ser implementados por todas las clases hijas
+    @abstractmethod
+    def calcular_total(self) -> float:
+        """Calcula el total del pedido según el tipo (POLIMORFISMO)"""
+        pass
+    
+    @abstractmethod
+    def tiempo_estimado_entrega(self) -> int:
+        """Calcula tiempo estimado en minutos según el tipo (POLIMORFISMO)"""
+        pass
+    
+    # MÉTODOS PRIVADOS - Cálculos internos encapsulados
+    def __subtotal(self) -> float:
+        """Calcula el subtotal sumando precio * cantidad de todos los items"""
+        return sum(item["precio"] * item["cantidad"] for item in self.__items)
+    
+    def __impuesto(self) -> float:
+        """Calcula el impuesto (5.51% sobre el subtotal)"""
+        return self.__subtotal() * 0.0551
+    
+    # MÉTODOS PÚBLICOS
+    def agregar_item(self, items: list) -> None:
+        """Agrega uno o más items al pedido"""
+        self.__items.extend(items)
+    
+    def actualizar_estado_cocina(self, num: int) -> str:
+        """
+        Actualiza el estado del pedido en cocina.
+        Args:num: índice del estado (0: pendiente, 1: en preparación, 2: listo, 3: entregado, 4: cancelado)
+        Returns:
+            Estado actualizado
+        """
+        fases = ["pendiente", "en preparación", "listo", "entregado", "cancelado"]
+        if 0 <= num < len(fases):
+            self._estado_cocina = fases[num]
+        else:
+            self._estado_cocina = "Estado inválido"
+        return self._estado_cocina
+    
+    # GETTERS para acceder a atributos privados de forma controlada
+    def obtener_numero_pedido(self) -> int:
+        """Retorna el número de pedido"""
+        return self.__numero_pedido
+    
+    def obtener_estado(self) -> str:
+        """Retorna el estado del pedido"""
+        return self.__estado
+    
+    def obtener_items(self) -> list:
+        """Retorna una copia de los items (protege la lista original)"""
+        return self.__items.copy()
+    
+    def obtener_subtotal(self) -> float:
+        """Retorna el subtotal (antes de impuestos y cargos)"""
+        return self.__subtotal()
+    
+    def obtener_impuesto(self) -> float:
+        """Retorna el valor del impuesto"""
+        return self.__impuesto()
+
+
+class PedidoSalon(Pedido):
+    """
+    Pedido para consumo en el salón del restaurante.
+    Incluye propina sugerida del 10% sobre el subtotal.
+    """
+    def __init__(self, numero_pedido: int, fecha_hora: datetime, items: list, estado: str, 
+                 cliente: str, numero_mesa: int, num_comensales: int, mesero_asignado: str):
+        super().__init__(numero_pedido, fecha_hora, items, estado, cliente)
+        
+        # Atributos específicos de pedidos en salón
+        self.numero_mesa = numero_mesa
+        self.num_comensales = num_comensales
+        self.mesero_asignado = mesero_asignado
+    
+    def __aplicar_propina(self) -> float:
+        """Calcula propina sugerida del 10% sobre el subtotal (método privado)"""
+        return self.obtener_subtotal() * 0.10
+    
+    def calcular_total(self) -> float:
+        """
+        Total = Subtotal + Impuesto + Propina sugerida (10%)
+        """
+        subtotal = self.obtener_subtotal()
+        impuesto = self.obtener_impuesto()
+        propina = self.__aplicar_propina()
+        return subtotal + impuesto + propina
+    
+    def tiempo_estimado_entrega(self) -> int:
+        """
+        Tiempo = 4 minutos por item
+        """
+        num_items = sum(item["cantidad"] for item in self.obtener_items())
+        tiempo_preparacion = num_items * 4
+        return tiempo_preparacion
+
+
+class PedidoParaLlevar(Pedido):
+    """
+    Pedido para llevar fuera del restaurante.
+    Incluye descuento del 10% y tiempo adicional por empaque especial.
+    """
+    
+    def __init__(self, numero_pedido: int, fecha_hora: datetime, items: list, estado: str,
+                 cliente: str, hora_recojo: datetime, empaque_especial: bool):
+        super().__init__(numero_pedido, fecha_hora, items, estado, cliente)
+        
+        # Atributos específicos de pedidos para llevar
+        self.hora_recojo = hora_recojo
+        self.empaque_especial = empaque_especial  # ✅ CORREGIDO: ahora usa el parámetro
+    
+    def __descuento(self) -> float:
+        """Calcula descuento del 10% sobre el subtotal (método privado)"""
+        return self.obtener_subtotal() * 0.10
+    
+    def calcular_total(self) -> float:
+        """
+        Total = (Subtotal - Descuento 10%) + Impuesto
+        """
+        subtotal = self.obtener_subtotal()
+        impuesto = self.obtener_impuesto()
+        descuento = self.__descuento()
+        return (subtotal - descuento) + impuesto
+    
+    def tiempo_estimado_entrega(self) -> int:
+        """
+        Tiempo = (4 min por item) + 5 min extra si hay empaque especial
+        """
+        num_items = sum(item["cantidad"] for item in self.obtener_items())
+        tiempo_preparacion = num_items * 4
+        tiempo_empaque_especial = 5 if self.empaque_especial else 0
+        return tiempo_preparacion + tiempo_empaque_especial
+
+
+class PedidoDelivery(Pedido):
+    """
+    Pedido con entrega a domicilio.
+    Incluye costo de envío y tiempo de viaje según distancia.
+    """
+    
+    def __init__(self, numero_pedido: int, fecha_hora: datetime, items: list, estado: str,
+                 cliente: str, direccion_entrega: str, repartidor: str, costo_envio: float,
+                 distancia_kilometros: int):
+        super().__init__(numero_pedido, fecha_hora, items, estado, cliente)
+        
+        # Atributos específicos de delivery
+        self.direccion_entrega = direccion_entrega
+        self.distancia_kilometros = distancia_kilometros
+        self.repartidor = repartidor
+        self.costo_envio = costo_envio
+    
+    def __calcular_tiempo_viaje(self) -> int:
+        """Calcula tiempo de viaje: 5 minutos por kilómetro (método privado)"""
+        return self.distancia_kilometros * 5
+    
+    def calcular_total(self) -> float:
+        """
+        Total = Subtotal + Impuesto + Costo de envío
+        """
+        subtotal = self.obtener_subtotal()
+        impuesto = self.obtener_impuesto()
+        return subtotal + impuesto + self.costo_envio
+    
+    def tiempo_estimado_entrega(self) -> int:
+        """
+        Tiempo = Preparación (4 min/item) + Empaque (2 min/item) + Viaje (5 min/km)
+        """
+        num_items = sum(item["cantidad"] for item in self.obtener_items())
+        tiempo_preparacion = num_items * 4
+        tiempo_empaque = num_items * 2
+        tiempo_viaje = self.__calcular_tiempo_viaje()
+        return tiempo_preparacion + tiempo_empaque + tiempo_viaje
+
+
+class PedidoEvento(Pedido):
+    """
+    Pedido para eventos con menú fijo.
+    Precio por persona menos anticipo. Incluye menú básico o premium.
+    """
+    
+    def __init__(self, numero_pedido: int, fecha_hora: datetime, items: list, estado: str,
+                 cliente: str, num_personas: int, menu_fijo: str, anticipo: float,
+                 fecha_evento: datetime):
+        super().__init__(numero_pedido, fecha_hora, items, estado, cliente)
+        
+        # Atributos específicos de eventos
+        self.num_personas = num_personas
+        self.menu_fijo = menu_fijo
+        self.anticipo = anticipo
+        self.fecha_evento = fecha_evento
+        self.__precio_persona = 50000  # Precio base por persona
+        
+        # Configurar menú automáticamente
+        self.__elegir_menu_fijo()
+    
+    def __elegir_menu_fijo(self) -> None:
+        """
+        Configura items automáticamente según el tipo de menú elegido (método privado).
+        - Básico: Hamburguesa + Refresco
+        - Premium: Filete + Vino
+        """
+        menus = {
+            "basico": [
+                {"nombre": "Hamburguesa", "precio": 15000, "cantidad": self.num_personas},
+                {"nombre": "Refresco", "precio": 3500, "cantidad": self.num_personas}
+            ],
+            "premium": [
+                {"nombre": "Filete", "precio": 30000, "cantidad": self.num_personas},
+                {"nombre": "Vino", "precio": 10000, "cantidad": self.num_personas}
+            ]
+        }
+        
+        items_menu = menus.get(self.menu_fijo.lower(), [])
+        if items_menu:
+            self.agregar_item(items_menu)
+    
+    def calcular_total(self) -> float:
+        """
+        Total = (Precio por persona × Num. personas) - Anticipo
+        """
+        precio_evento = self.__precio_persona * self.num_personas
+        return precio_evento - self.anticipo
+    
+    def tiempo_estimado_entrega(self) -> int:
+        """
+        Tiempo = 120 min base + (3 min por persona)
+        """
+        tiempo_base = 120  # 2 horas base para preparar evento
+        tiempo_por_persona = self.num_personas * 3
+        return tiempo_base + tiempo_por_persona
+
+
+# ============================================================================
+# SIMULACIÓN Y PRUEBAS
+# ============================================================================
+
+if __name__ == "__main__":
+
+    print("   SISTEMA DE GESTIÓN DE PEDIDOS - RESTAURANTE")
+    # ========== PEDIDOS EN SALÓN (2 ejemplos) ==========
+    print("\n PEDIDOS EN SALÓN")
+    
+    # Pedido Salón #1
+    pedido_salon1 = PedidoSalon(
+        numero_pedido=101,
+        fecha_hora=datetime(2025, 11, 28, 14, 30),
+        items=[],
+        estado="activo",
+        cliente="Juan Pérez",
+        numero_mesa=5,
+        num_comensales=2,
+        mesero_asignado="Carlos"
+    )
+    pedido_salon1.agregar_item([
+        {"nombre": "Hamburguesa", "precio": 15000, "cantidad": 2},
+        {"nombre": "Refresco", "precio": 3500, "cantidad": 2}
+    ])
+    pedido_salon1.actualizar_estado_cocina(1)  # En preparación
+    
+    print(f"\n{'='*70}")
+    print(f" PEDIDO EN SALÓN #1 - Pedido #{pedido_salon1.obtener_numero_pedido()}")
+    print(f"{'='*70}")
+    print(f"Cliente: {pedido_salon1._cliente}")
+    print(f"Mesa: {pedido_salon1.numero_mesa} | Comensales: {pedido_salon1.num_comensales} | Mesero: {pedido_salon1.mesero_asignado}")
+    print(f"Estado cocina: {pedido_salon1._estado_cocina}")
+    print(f"Items:")
+    for item in pedido_salon1.obtener_items():
+        print(f"   - {item['nombre']}: ${item['precio']:,.0f} × {item['cantidad']} = ${item['precio'] * item['cantidad']:,.0f}")
+    print(f"    Cálculos:")
+    print(f"   Subtotal: ${pedido_salon1.obtener_subtotal():,.2f}")
+    print(f"   Impuesto (5.51%): ${pedido_salon1.obtener_impuesto():,.2f}")
+    print(f"   Propina sugerida (10%): ${pedido_salon1.obtener_subtotal() * 0.10:,.2f}")
+    print(f"   TOTAL: ${pedido_salon1.calcular_total():,.2f}")
+    print(f"   Tiempo estimado: {pedido_salon1.tiempo_estimado_entrega()} minutos")
+    
+    # Pedido Salón #2
+    pedido_salon2 = PedidoSalon(
+        numero_pedido=102,
+        fecha_hora=datetime(2025, 11, 28, 15, 0),
+        items=[],
+        estado="activo",
+        cliente="María García",
+        numero_mesa=8,
+        num_comensales=4,
+        mesero_asignado="Ana"
+    )
+    pedido_salon2.agregar_item([
+        {"nombre": "Pizza Familiar", "precio": 25000, "cantidad": 2},
+        {"nombre": "Cerveza", "precio": 5000, "cantidad": 4}
+    ])
+    pedido_salon2.actualizar_estado_cocina(2)  # Listo
+    
+    print(f"\n{'='*70}")
+    print(f"  PEDIDO EN SALÓN #2 - Pedido #{pedido_salon2.obtener_numero_pedido()}")
+    print(f"{'='*70}")
+    print(f"Cliente: {pedido_salon2._cliente}")
+    print(f"Mesa: {pedido_salon2.numero_mesa} | Comensales: {pedido_salon2.num_comensales} | Mesero: {pedido_salon2.mesero_asignado}")
+    print(f"Estado cocina: {pedido_salon2._estado_cocina}")
+    print(f" Items:")
+    for item in pedido_salon2.obtener_items():
+        print(f"   - {item['nombre']}: ${item['precio']:,.0f} × {item['cantidad']} = ${item['precio'] * item['cantidad']:,.0f}")
+    print(f" Cálculos:")
+    print(f"   Subtotal: ${pedido_salon2.obtener_subtotal():,.2f}")
+    print(f"   Impuesto (5.51%): ${pedido_salon2.obtener_impuesto():,.2f}")
+    print(f"   Propina sugerida (10%): ${pedido_salon2.obtener_subtotal() * 0.10:,.2f}")
+    print(f"   TOTAL: ${pedido_salon2.calcular_total():,.2f}")
+    print(f"  Tiempo estimado: {pedido_salon2.tiempo_estimado_entrega()} minutos")
+    
+    # ========== PEDIDOS PARA LLEVAR (2 ejemplos) ==========
+    print(" PEDIDOS PARA LLEVAR")
+    print("-" * 70)
+    
+    # Pedido Para Llevar #1
+    pedido_llevar1 = PedidoParaLlevar(
+        numero_pedido=201,
+        fecha_hora=datetime(2025, 11, 28, 16, 0),
+        items=[],
+        estado="activo",
+        cliente="Pedro López",
+        hora_recojo=datetime(2025, 11, 28, 17, 30),
+        empaque_especial=True
+    )
+    pedido_llevar1.agregar_item([
+        {"nombre": "Sushi Roll", "precio": 18000, "cantidad": 3},
+        {"nombre": "Té Verde", "precio": 4000, "cantidad": 2}
+    ])
+    pedido_llevar1.actualizar_estado_cocina(1)  # En preparación
+    
+    print(f"\n{'='*70}")
+    print(f" PEDIDO PARA LLEVAR #1 - Pedido #{pedido_llevar1.obtener_numero_pedido()}")
+    print(f"{'='*70}")
+    print(f"Cliente: {pedido_llevar1._cliente}")
+    print(f"Hora de recojo: {pedido_llevar1.hora_recojo.strftime('%H:%M')} | Empaque especial: {'Sí' if pedido_llevar1.empaque_especial else 'No'}")
+    print(f"Estado cocina: {pedido_llevar1._estado_cocina}")
+    print(f" Items:")
+    for item in pedido_llevar1.obtener_items():
+        print(f"   - {item['nombre']}: ${item['precio']:,.0f} × {item['cantidad']} = ${item['precio'] * item['cantidad']:,.0f}")
+    print(f" Cálculos:")
+    print(f"   Subtotal: ${pedido_llevar1.obtener_subtotal():,.2f}")
+    print(f"   Descuento (10%): -${pedido_llevar1.obtener_subtotal() * 0.10:,.2f}")
+    print(f"   Impuesto (5.51%): ${pedido_llevar1.obtener_impuesto():,.2f}")
+    print(f"   TOTAL: ${pedido_llevar1.calcular_total():,.2f}")
+    print(f"  Tiempo estimado: {pedido_llevar1.tiempo_estimado_entrega()} minutos")
+    
+    # Pedido Para Llevar #2
+    pedido_llevar2 = PedidoParaLlevar(
+        numero_pedido=202,
+        fecha_hora=datetime(2025, 11, 28, 16, 30),
+        items=[],
+        estado="activo",
+        cliente="Laura Martínez",
+        hora_recojo=datetime(2025, 11, 28, 18, 0),
+        empaque_especial=False
+    )
+    pedido_llevar2.agregar_item([
+        {"nombre": "Ensalada César", "precio": 12000, "cantidad": 1},
+        {"nombre": "Jugo Natural", "precio": 6000, "cantidad": 1}
+    ])
+    pedido_llevar2.actualizar_estado_cocina(2)  # Listo
+    
+    print(f"\n{'='*70}")
+    print(f" PEDIDO PARA LLEVAR #2 - Pedido #{pedido_llevar2.obtener_numero_pedido()}")
+    print(f"{'='*70}")
+    print(f"Cliente: {pedido_llevar2._cliente}")
+    print(f"Hora de recojo: {pedido_llevar2.hora_recojo.strftime('%H:%M')} | Empaque especial: {'Sí' if pedido_llevar2.empaque_especial else 'No'}")
+    print(f"Estado cocina: {pedido_llevar2._estado_cocina}")
+    print(f" Items:")
+    for item in pedido_llevar2.obtener_items():
+        print(f"   - {item['nombre']}: ${item['precio']:,.0f} × {item['cantidad']} = ${item['precio'] * item['cantidad']:,.0f}")
+    print(f" Cálculos:")
+    print(f"   Subtotal: ${pedido_llevar2.obtener_subtotal():,.2f}")
+    print(f"   Descuento (10%): -${pedido_llevar2.obtener_subtotal() * 0.10:,.2f}")
+    print(f"   Impuesto (5.51%): ${pedido_llevar2.obtener_impuesto():,.2f}")
+    print(f"   TOTAL: ${pedido_llevar2.calcular_total():,.2f}")
+    print(f"  Tiempo estimado: {pedido_llevar2.tiempo_estimado_entrega()} minutos")
+    
+    # ========== PEDIDOS DELIVERY (2 ejemplos) ==========
+    print("\n\n🚴 PEDIDOS DELIVERY")
+    print("-" * 70)
+    
+    # Pedido Delivery #1
+    pedido_delivery1 = PedidoDelivery(
+        numero_pedido=301,
+        fecha_hora=datetime(2025, 11, 28, 18, 0),
+        items=[],
+        estado="activo",
+        cliente="Andrea Rojas",
+        direccion_entrega="Calle 50 #25-10, Envigado",
+        repartidor="Miguel",
+        costo_envio=8000,
+        distancia_kilometros=4
+    )
+    pedido_delivery1.agregar_item([
+        {"nombre": "Pasta Carbonara", "precio": 22000, "cantidad": 1},
+        {"nombre": "Lasaña", "precio": 24000, "cantidad": 1},
+        {"nombre": "Limonada", "precio": 4500, "cantidad": 2}
+    ])
+    pedido_delivery1.actualizar_estado_cocina(1)  # En preparación
+    
+    print(f"\n{'='*70}")
+    print(f" PEDIDO DELIVERY #1 - Pedido #{pedido_delivery1.obtener_numero_pedido()}")
+    print(f"{'='*70}")
+    print(f"Cliente: {pedido_delivery1._cliente}")
+    print(f"Dirección: {pedido_delivery1.direccion_entrega}")
+    print(f"Repartidor: {pedido_delivery1.repartidor} | Distancia: {pedido_delivery1.distancia_kilometros} km")
+    print(f"Estado cocina: {pedido_delivery1._estado_cocina}")
+    print(f" Items:")
+    for item in pedido_delivery1.obtener_items():
+        print(f"   - {item['nombre']}: ${item['precio']:,.0f} × {item['cantidad']} = ${item['precio'] * item['cantidad']:,.0f}")
+    print(f" Cálculos:")
+    print(f"   Subtotal: ${pedido_delivery1.obtener_subtotal():,.2f}")
+    print(f"   Impuesto (5.51%): ${pedido_delivery1.obtener_impuesto():,.2f}")
+    print(f"   Costo de envío: ${pedido_delivery1.costo_envio:,.2f}")
+    print(f"   TOTAL: ${pedido_delivery1.calcular_total():,.2f}")
+    print(f"  Tiempo estimado: {pedido_delivery1.tiempo_estimado_entrega()} minutos")
+    
+    # Pedido Delivery #2
+    pedido_delivery2 = PedidoDelivery(
+        numero_pedido=302,
+        fecha_hora=datetime(2025, 11, 28, 19, 0),
+        items=[],
+        estado="activo",
+        cliente="Roberto Sánchez",
+        direccion_entrega="Carrera 43A #12-50, Medellín",
+        repartidor="Diana",
+        costo_envio=6000,
+        distancia_kilometros=2
+    )
+    pedido_delivery2.agregar_item([
+        {"nombre": "Tacos x3", "precio": 16000, "cantidad": 2},
+        {"nombre": "Nachos", "precio": 10000, "cantidad": 1}
+    ])
+    pedido_delivery2.actualizar_estado_cocina(3)  # Entregado
+    
+    print(f"\n{'='*70}")
+    print(f" PEDIDO DELIVERY #2 - Pedido #{pedido_delivery2.obtener_numero_pedido()}")
+    print(f"{'='*70}")
+    print(f"Cliente: {pedido_delivery2._cliente}")
+    print(f"Dirección: {pedido_delivery2.direccion_entrega}")
+    print(f"Repartidor: {pedido_delivery2.repartidor} | Distancia: {pedido_delivery2.distancia_kilometros} km")
+    print(f"Estado cocina: {pedido_delivery2._estado_cocina}")
+    print(f" Items:")
+    for item in pedido_delivery2.obtener_items():
+        print(f"   - {item['nombre']}: ${item['precio']:,.0f} × {item['cantidad']} = ${item['precio'] * item['cantidad']:,.0f}")
+    print(f" Cálculos:")
+    print(f"   Subtotal: ${pedido_delivery2.obtener_subtotal():,.2f}")
+    print(f"   Impuesto (5.51%): ${pedido_delivery2.obtener_impuesto():,.2f}")
+    print(f"   Costo de envío: ${pedido_delivery2.costo_envio:,.2f}")
+    print(f"   TOTAL: ${pedido_delivery2.calcular_total():,.2f}")
+    print(f"  Tiempo estimado: {pedido_delivery2.tiempo_estimado_entrega()} minutos")
+    
+    # ========== PEDIDOS EVENTO (2 ejemplos) ==========
+    print(" PEDIDOS PARA EVENTOS")
+    print("-" * 70)
+    
+    # Pedido Evento #1 - Menú Básico
+    pedido_evento1 = PedidoEvento(
+        numero_pedido=401,
+        fecha_hora=datetime(2025, 11, 28, 10, 0),
+        items=[],
+        estado="confirmado",
+        cliente="Empresa Tech Solutions",
+        num_personas=15,
+        menu_fijo="basico",
+        anticipo=200000,
+        fecha_evento=datetime(2025, 12, 5, 14, 0)
+    )
+    pedido_evento1.actualizar_estado_cocina(0)  # Pendiente (aún no es la fecha)
+    
+    print(f"\n{'='*70}")
+    print(f" PEDIDO EVENTO #1 - Pedido #{pedido_evento1.obtener_numero_pedido()}")
+    print(f"{'='*70}")
+    print(f"Cliente: {pedido_evento1._cliente}")
+    print(f"Estado cocina: {pedido_evento1._estado_cocina}")
+    print(f" Fecha del evento: {pedido_evento1.fecha_evento.strftime('%d/%m/%Y %H:%M')}")
+    print(f" Personas: {pedido_evento1.num_personas}")
+    print(f"  Menú: {pedido_evento1.menu_fijo.upper()}")
+    print(f" Items del menú:")
+    for item in pedido_evento1.obtener_items():
+        print(f"   - {item['nombre']}: ${item['precio']:,.0f} × {item['cantidad']} = ${item['precio'] * item['cantidad']:,.0f}")
+    print(f" Cálculos:")
+    print(f"   Precio por persona: $50,000")
+    print(f"   Total evento (50,000 × {pedido_evento1.num_personas}): ${50000 * pedido_evento1.num_personas:,.0f}")
+    print(f"   Anticipo pagado: -${pedido_evento1.anticipo:,.0f}")
+    print(f"   SALDO PENDIENTE: ${pedido_evento1.calcular_total():,.2f}")
+    print(f"  Tiempo estimado preparación: {pedido_evento1.tiempo_estimado_entrega()} minutos")
+    
+    # Pedido Evento #2 - Menú Premium
+    pedido_evento2 = PedidoEvento(
+        numero_pedido=402,
+        fecha_hora=datetime(2025, 11, 28, 11, 0),
+        items=[],
+        estado="confirmado",
+        cliente="Matrimonio González-Díaz",
+        num_personas=50,
+        menu_fijo="premium",
+        anticipo=1000000,
+        fecha_evento=datetime(2025, 12, 15, 19, 0)
+    )
+    pedido_evento2.actualizar_estado_cocina(0)  # Pendiente
+    
+    print(f"\n{'='*70}")
+    print(f"PEDIDO EVENTO #2 - Pedido #{pedido_evento2.obtener_numero_pedido()}")
+    print(f"{'='*70}")
+    print(f"Cliente: {pedido_evento2._cliente}")
+    print(f"Estado cocina: {pedido_evento2._estado_cocina}")
+    print(f" Fecha del evento: {pedido_evento2.fecha_evento.strftime('%d/%m/%Y %H:%M')}")
+    print(f" Personas: {pedido_evento2.num_personas}")
+    print(f"  Menú: {pedido_evento2.menu_fijo.upper()}")
+    print(f" Items del menú:")
+    for item in pedido_evento2.obtener_items():
+        print(f"   - {item['nombre']}: ${item['precio']:,.0f} × {item['cantidad']} = ${item['precio'] * item['cantidad']:,.0f}")
+    print(f" Cálculos:")
+    print(f"   Precio por persona: $50,000")
+    print(f"   Total evento (50,000 × {pedido_evento2.num_personas}): ${50000 * pedido_evento2.num_personas:,.0f}")
+    print(f"   Anticipo pagado: -${pedido_evento2.anticipo:,.0f}")
+    print(f"   SALDO PENDIENTE: ${pedido_evento2.calcular_total():,.2f}")
+    print(f"  Tiempo estimado preparación: {pedido_evento2.tiempo_estimado_entrega()} minutos")
+    
+    # ========== RESUMEN GENERAL ==========
+    print("\n\n" + "="*70)
+    print(" RESUMEN GENERAL DEL SISTEMA")
+    print("="*70)
+    
+    pedidos = [
+        ("Salón", [pedido_salon1, pedido_salon2]),
+        ("Para Llevar", [pedido_llevar1, pedido_llevar2]),
+        ("Delivery", [pedido_delivery1, pedido_delivery2]),
+        ("Eventos", [pedido_evento1, pedido_evento2])
+    ]
+    
+    for tipo, lista_pedidos in pedidos:
+        total_tipo = sum(p.calcular_total() for p in lista_pedidos)
+        print(f"\n{tipo}:")
+        print(f"   • Cantidad de pedidos: {len(lista_pedidos)}")
+        print(f"   • Total acumulado: ${total_tipo:,.2f}")
+    
+    total_general = sum(p.calcular_total() for _, lista in pedidos for p in lista)
+    print(f"\n{'─'*70}")
+    print(f" TOTAL GENERAL DEL DÍA: ${total_general:,.2f}")
+    print(f"{'─'*70}\n")
